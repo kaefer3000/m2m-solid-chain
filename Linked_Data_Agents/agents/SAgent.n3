@@ -1,0 +1,534 @@
+@prefix http: <http://www.w3.org/2011/http#> .
+@prefix httpm: <http://www.w3.org/2011/http-methods#> .
+@prefix as: <https://www.w3.org/ns/activitystreams#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#>.
+@prefix this: <http://this.nxparser.github.io/reference/to/URI/of/current/rdf/graph/for/representing/permanently/relative/URIs/in/N-Triples/#> .
+@prefix schema: <http://schema.org/>.
+@prefix voc: <http://www.student.kit.edu/~ukeaq/uni/voc.ttl#>.
+
+
+#Watch for new messages being stored in the inbox folder.
+{
+_:b1    http:mthd httpm:GET ;
+        http:requestURI <https://seller0.solidweb.org/inbox/>.
+
+}
+
+#Retrieve message stored in the inbox folder.
+{
+ <https://seller0.solidweb.org/inbox/> ldp:contains ?message .
+} => {
+    _:b3        http:mthd httpm:GET;
+                http:requestURI ?message.
+
+} .
+
+
+#Retrieve customer profile card.
+{
+ ?notification a schema:Demand.
+ ?customer schema:seeks ?notification.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a schema:Demand.
+ ?seller schema:offers ?notification.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+
+} .
+
+#Retrieve customer profile card.
+{
+ ?notification a schema:Order;
+		schema:customer ?customer.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a schema:Order;
+		schema:seller ?seller.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+
+} .
+
+#Retrieve customer profile card.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a schema:MoneyTransfer;
+		as:object ?obj.
+	?obj schema:referencesOrder ?ord.
+	?ord schema:seller ?seller.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+
+} .
+
+#Retrieve offered item.
+{
+    ?notification a schema:Demand;
+                schema:itemOffered ?object.
+	?seller schema:offers ?notification.
+	?customer schema:seeks ?notification.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?object.
+
+} .
+
+#Send Offer to the specified customer's inbox folder if seller owns object.
+{
+    ?notification a schema:Demand;
+                schema:itemOffered ?object.
+	?seller schema:offers ?notification;
+			schema:owns ?object.
+	?customer schema:seeks ?notification.
+	?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ;
+     http:body {
+     this:off a schema:Offer;
+                schema:itemOffered ?object;
+				schema:availability schema:InStock;
+				schema:price "20"^^xsd:integer ;
+				schema:priceCurrency "ETH".
+	 ?seller schema:offers this:off.
+     ?customer schema:seeks this:off.
+            } .
+} .
+
+#Represent "Send Offer" in the 3D Environment.
+{
+  ?notification a schema:Demand;
+                schema:itemOffered ?object.
+	?seller schema:offers ?notification;
+			schema:owns ?object.
+	?customer schema:seeks ?notification.
+	?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/0/action> ;
+     http:body {
+		_:c voc:invokeAction voc:grip.
+		_:c voc:invokeAction voc:down_right.
+            } .
+} .
+
+#Send Reject to the specified customers inbox folder, if customer owns object.
+{
+    ?notification a schema:Demand;
+                schema:itemOffered ?object.
+	?seller schema:offers ?notification.
+	?customer schema:seeks ?notification;
+			schema:owns ?object.
+	?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ;
+     http:body {
+     this:rej a as:Reject;
+                as:actor ?seller;
+                as:object ?notification.
+            } .
+} .
+
+#Represent "Offer rejected" in 3D-Environment.
+{
+ ?rej a as:Reject;
+                as:actor ?customer;
+                as:object ?notification.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/0/action>;
+     http:body {
+       _:c voc:invokeAction voc:down_left.
+		_:c voc:invokeAction voc:drop_left.
+            }.
+}.
+
+#Retrieve Offer.
+{
+?answer a schema:Order;
+    schema:customer ?customer;
+    schema:seller ?seller;
+	schema:orderStatus schema:OrderProcessing;
+    schema:acceptedOffer ?off.
+?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?off.
+}.
+
+#Send Invoice to the specified customers inbox folder.
+{
+?answer a schema:Order;
+    schema:customer ?customer;
+    schema:seller ?seller;
+	schema:orderStatus schema:OrderProcessing;
+    schema:acceptedOffer ?off.
+?off schema:priceCurrency ?currency; 
+		schema:price ?price.
+?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox;
+     http:body {
+        this:inv a schema:Invoice;
+                schema:customer ?customer;
+                schema:totalPaymentDue ?price;
+				schema:currency ?currency;
+				schema:paymentStatus schema:PaymentDue;
+                schema:referencesOrder ?answer.
+            }.
+}.
+
+#Update order status in Order upon sending invoice.
+{
+?answer a schema:Order;
+    schema:customer ?customer;
+    schema:seller ?seller;
+	schema:orderStatus schema:OrderProcessing;
+    schema:acceptedOffer ?off.
+?off schema:priceCurrency ?currency; 
+		schema:price ?price.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?answer;
+     http:body {
+        ?answer a schema:Order;
+			schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:acceptedOffer ?off.
+            }.
+}.
+
+#Retrieve Invoice.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?obj.
+}.
+
+#Retrieve Order.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?answer.
+}.
+
+#Send Update to the specified customers inbox folder upon received transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+	?obj schema:referencesOrder ?answer.
+	?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+	?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox;
+     http:body {
+        this:upd a as:Update;
+                as:actor ?seller;
+                as:object ?answer.
+            }.
+}.
+
+#Update order status in Order upon received transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?answer;
+     http:body {
+                ?answer a schema:Order;
+                        schema:customer ?customer;
+						schema:seller ?seller;
+						schema:orderStatus schema:OrderPickupAvailable;
+						schema:acceptedOffer ?off.
+            }.
+}.
+
+#Update payment status in Invoice upon received transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?obj;
+     http:body {
+               ?obj a schema:Invoice;
+					schema:customer ?customer;
+					schema:currency ?currency;
+					schema:totalPaymentDue ?price;
+					schema:paymentStatus schema:PaymentComplete;
+					schema:referencesOrder ?answer.
+            }.
+}.
+
+#Represent "Delivery" in 3D-Environment.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:CompletedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/0/action>;
+     http:body {
+        _:c voc:invokeAction voc:drop.
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Retrieve Invoice.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?obj.
+}.
+
+#Retrieve Order.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?answer.
+}.
+
+#Update order status in Order upon failed transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?answer;
+     http:body {
+                ?answer a schema:Order;
+                        schema:customer ?customer;
+						schema:seller ?seller;
+						schema:orderStatus schema:OrderCancelled;
+						schema:acceptedOffer ?off.
+            }.
+}.
+
+#Update payment status in Invoice upon failed transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?obj;
+     http:body {
+               ?obj a schema:Invoice;
+					schema:customer ?customer;
+					schema:currency ?currency;
+					schema:totalPaymentDue ?price;
+					schema:paymentStatus "Payment Failed";
+					schema:referencesOrder ?answer.
+            }.
+}.
+
+#Send Update to the specified customers inbox folder upon failed transaction.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+	?obj schema:referencesOrder ?answer.
+	?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+	?customer ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox;
+     http:body {
+        this:upd a as:Update;
+                as:actor ?seller;
+                as:object ?answer.
+            }.
+}.
+
+#Retrieve Offer.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?off.
+}.
+
+#Retrieve Product.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+	?off schema:itemOffered ?obj.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?obj.
+}.
+
+#Update Product (ownership).
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+	?off schema:itemOffered ?obj.
+	?obj schema:category ?category; 
+			schema:name ?name.
+	?seller schema:owns ?obj.
+	?customer ldp:inbox ?inbox.
+} => {
+ [] http:mthd httpm:POST ;
+     http:requestURI ?inbox;
+     http:body {
+        this:upd a as:Update;
+                as:actor ?seller;
+                as:object ?answer.
+            }.
+}.
+
+#Represent "Order Cancelled" in 3D-Environment.
+{
+ ?notification a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:currency ?currency;
+		schema:amount ?price;
+		schema:actionStatus schema:FailedActionStatus;
+		schema:object ?obj.
+		?obj schema:referencesOrder ?answer.
+		?answer schema:acceptedOffer ?off;
+			schema:orderStatus schema:OrderPaymentDue;
+			schema:seller ?seller.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/0/action>;
+     http:body {
+        _:c voc:invokeAction voc:down_left.
+		_:c voc:invokeAction voc:drop_left.
+            }.
+}.
+
+#Delete reject message stored in the inbox when the negotiation process ended unsuccessfully.
+{ ?notif a as:Reject.
+} => {
+_:b1 http:mthd httpm:DELETE ;
+    http:requestURI ?notif .
+    } .
+
+#Delete original message (demand) received from the user frontend.
+{ ?notif a schema:Demand.
+} => {
+_:b1 http:mthd httpm:DELETE ;
+    http:requestURI ?notif .
+    } .
+
+
+
+
+

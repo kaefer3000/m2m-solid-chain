@@ -1,0 +1,22 @@
+{
+  "name": "payment_service",
+  "version": "0.0.2",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+	"start": "node src/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "web3": "^1.3.4",
+	"xmlhttprequest": "1.8.0",
+    "body-parser": "^1.15.2",
+    "express": "^4.14.0",
+    "morgan": "^1.7.0",
+    "rdf-body-parser": "file:./rdf-body-parser",
+    "rdf-formats-common": "^0.3.0",
+    "rdf-ext": "^0.3.0"
+  },
+  "readme": ""
+}

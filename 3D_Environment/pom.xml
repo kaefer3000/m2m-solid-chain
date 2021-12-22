@@ -1,0 +1,124 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<name>Two Robot Arms in JMonkey with Read-Write Linked Data Interface</name>
+
+	<groupId>edu.kit.aifb.ls3.kaefer.jmonkey-ld</groupId>
+	<artifactId>robotarms</artifactId>
+
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>war</packaging>
+
+	<properties>
+		<jmonkey.version>3.2.4-stable</jmonkey.version>
+		<nxparser.version>3.0.0</nxparser.version>
+		<jetty.version>9.2.29.v20191105</jetty.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<failOnMissingWebXml>false</failOnMissingWebXml>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.semanticweb.yars</groupId>
+			<artifactId>nxparser-jax-rs</artifactId>
+			<version>${nxparser.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-servlet</artifactId>
+			<version>2.10</version>
+		</dependency>
+		<dependency>
+			<!-- only for its CORS filter: -->
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-servlets</artifactId>
+			<version>${jetty.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-continuation</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-io</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-http</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.jmonkeyengine</groupId>
+			<artifactId>jme3-blender</artifactId>
+			<version>${jmonkey.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jmonkeyengine</groupId>
+			<artifactId>jme3-bullet</artifactId>
+			<version>${jmonkey.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jmonkeyengine</groupId>
+			<artifactId>jme3-bullet-native</artifactId>
+			<version>${jmonkey.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jmonkeyengine</groupId>
+			<artifactId>jme3-lwjgl</artifactId>
+			<version>${jmonkey.version}</version>
+		</dependency>
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>bintray-jmonkeyengine-org.jmonkeyengine</id>
+			<name>bintray</name>
+			<url>https://dl.bintray.com/jmonkeyengine/org.jmonkeyengine</url>
+		</repository>
+	</repositories>
+
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-maven-plugin</artifactId>
+				<version>${jetty.version}</version>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

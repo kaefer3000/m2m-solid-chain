@@ -1,0 +1,680 @@
+@prefix http: <http://www.w3.org/2011/http#> .
+@prefix httpm: <http://www.w3.org/2011/http-methods#> .
+@prefix as: <https://www.w3.org/ns/activitystreams#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#>.
+@prefix this: <http://this.nxparser.github.io/reference/to/URI/of/current/rdf/graph/for/representing/permanently/relative/URIs/in/N-Triples/#> .
+@prefix schema: <http://schema.org/>.
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix voc: <http://www.student.kit.edu/~ukeaq/uni/voc.ttl#>.
+@prefix ethon: <http://ethon.consensys.net/>.
+@prefix string: <http://www.w3.org/2000/10/swap/string#>.
+@prefix log: <http://www.w3.org/2000/10/swap/log#>.
+
+
+#Watch for new messaged stored in the inbox folder.
+{
+_:b1 http:mthd httpm:GET ;
+      http:requestURI <https://customer1.solidweb.org/inbox/>.
+      } 
+
+#Retrieve the content of every file stored in the inbox folder.
+{
+ <https://customer1.solidweb.org/inbox/> ldp:contains ?message . 
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?message.
+          
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a schema:Offer.
+ ?seller schema:offers ?notification.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+         
+} .
+
+#Retrieve customer profile card.
+{
+ ?notification a schema:Offer.
+ ?customer schema:seeks ?notification.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+          
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a schema:Invoice;
+		schema:referencesOrder ?ord.
+ ?ord schema:seller ?seller.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+         
+} .
+
+#Retrieve customer profile card.
+{
+ ?notification a schema:Invoice;
+		schema:customer ?customer.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+          
+} .
+
+#Retrieve seller profile card.
+{
+ ?notification a as:Update;
+		as:object ?ord.
+ ?ord schema:seller ?seller.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?seller.
+         
+} .
+
+#Retrieve customer profile card.
+{
+ ?notification a as:Update;
+		as:object ?ord.
+ ?ord schema:customer ?customer.
+} => {
+    _:b3 http:mthd httpm:GET ;
+          http:requestURI ?customer.
+          
+} .
+
+#Return to starting position, if Demand was rejected.
+{
+  ?notification a as:Reject;
+                as:actor ?seller;
+                as:object ?dem.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Retrieve customer's balance.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+    ?seller ldp:inbox ?inbox.
+	("http://localhost:4000/balance/account/" ?address) string:concatenation ?gebastelteURIString.
+	?gebastelteURIString log:stringToUri ?gebastelteURI.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?gebastelteURI.
+}.
+
+#Send order if customer's balance sufficient.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+	?balance a ethon:ExternalAccount;
+		ethon:address ?address;
+		ethon:accountBalance ?balanceValueWei.
+	(?balanceValueWei "1000000000000000000"^^xsd:integer) math:quotient ?balanceValue.
+	?price math:notGreaterThan ?balanceValue.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ; 
+     http:body { 
+	 this:ord a schema:Order;
+			schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderProcessing;
+			schema:acceptedOffer ?notification.
+			?seller schema:offers ?notification.
+			?customer schema:seeks ?notification.
+            }.
+}.
+
+#Reject if the balance not sufficient.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+	?balance a ethon:ExternalAccount;
+		ethon:address ?address;
+		ethon:accountBalance ?balanceValueWei.
+	(?balanceValueWei "1000000000000000000"^^xsd:integer) math:quotient ?balanceValue.
+	?price math:greaterThan ?balanceValue.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ; 
+     http:body { 
+     this:rej a as:Reject;
+                as:actor ?customer;
+                as:object ?notification. 
+            }.
+}.
+
+#Return to starting position, if the balance not sufficient.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+	?balance a ethon:ExternalAccount;
+		ethon:address ?address;
+		ethon:accountBalance ?balanceValueWei.
+	(?balanceValueWei "1000000000000000000"^^xsd:integer) math:quotient ?balanceValue.
+	?price math:greaterThan ?balanceValue.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Delete Offer if the balance not sufficient.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+	?balance a ethon:ExternalAccount;
+		ethon:address ?address;
+		ethon:accountBalance ?balanceValueWei.
+	(?balanceValueWei "1000000000000000000"^^xsd:integer) math:quotient ?balanceValue.
+	?price math:greaterThan ?balanceValue.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:DELETE ;
+     http:requestURI ?notification.
+	 
+}.
+
+#Update Offer.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:notGreaterThan ?limitValue.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?address.
+	?balance a ethon:ExternalAccount;
+		ethon:address ?address;
+		ethon:accountBalance ?balanceValueWei.
+	(?balanceValueWei "1000000000000000000"^^xsd:integer) math:quotient ?balanceValue.
+	?price math:notGreaterThan ?balanceValue.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?notification ; 
+     http:body { 
+     ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:OutOfStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification.
+            }.
+}.
+
+#Reject if the price exceeds the limit.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:greaterThan ?limitValue.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ; 
+     http:body { 
+     this:rej a as:Reject;
+                as:actor ?customer;
+                as:object ?notification. 
+            }.
+}.
+
+#Return to starting position, if the price exceeds the limit.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:priceCurrency ?currency;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:greaterThan ?limitValue.
+?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Delete Offer if the price exceeds the limit.
+{
+    ?notification a schema:Offer;
+                schema:itemOffered ?obj;
+				schema:availability schema:InStock;
+				schema:price ?price . 
+	?seller schema:offers ?notification.
+    ?customer schema:seeks ?notification;
+				schema:floorLimit ?limit.
+	?limit schema:currency ?currency;
+			schema:value ?limitValue.
+	?price math:greaterThan ?limitValue.
+?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:DELETE ;
+     http:requestURI ?notification.
+	 
+}.
+
+#Retrieve Order.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentDue;
+					schema:referencesOrder ?answer.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?answer.
+}.
+
+#Send Money Transfer to indicate payment initiation.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentDue;
+					schema:referencesOrder ?answer.
+	?answer schema:seller ?seller.
+	?seller ethon:controlsAccount ?sellerAccount.
+	?sellerAccount ethon:address ?Receiver.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?Sender.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI ?inbox ; 
+     http:body { 
+     this:mon a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:amount ?price;
+		schema:currency ?currency;
+		schema:actionStatus schema:ActiveActionStatus;
+		schema:object ?notification;
+		ethon:from ?Sender;
+		ethon:to ?Receiver.		
+            }.
+}.
+
+#Update paymentStatus in Invoice.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentDue;
+					schema:referencesOrder ?answer.
+	?answer schema:seller ?seller.
+	?seller ethon:controlsAccount ?sellerAccount.
+	?sellerAccount ethon:address ?Receiver.
+	?customer ethon:controlsAccount ?customerAccount.
+	?customerAccount ethon:address ?Sender.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?notification ; 
+     http:body { 
+     ?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+            }.
+}.
+
+#Retrieve Order.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?answer.
+}.
+
+#Retrieve seller profile card.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+	?answer schema:seller ?seller.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?seller.
+}.
+
+#Retrieve seller inbox.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+	?answer schema:seller ?seller.
+	?seller ldp:inbox ?inbox.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?inbox.
+}.
+
+#Retrieve Money Transfer from seller inbox.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+	?answer schema:seller ?seller.
+	?seller ldp:inbox ?inbox.
+	?inbox ldp:contains ?message . 
+} => {
+    [] http:mthd httpm:GET ;
+     http:requestURI ?message.
+                
+} .
+
+#Initiate payment for the Order.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+	?mon a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:amount ?price;
+		schema:currency ?currency;
+		schema:actionStatus schema:ActiveActionStatus;
+		schema:object ?notification;
+		ethon:from ?Sender;
+		ethon:to ?Receiver.		
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:4000/> ; 
+     http:body { 
+     ?mon a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:amount ?price;
+		schema:currency ?currency;
+		schema:actionStatus schema:ActiveActionStatus;
+		schema:object ?notification;
+		ethon:from ?Sender;
+		ethon:to ?Receiver.		
+            }.
+}.
+
+#Update paymentStatus in Invoice.
+{
+	?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus schema:PaymentAutomaticallyApplied;
+					schema:referencesOrder ?answer.
+	?mon a schema:MoneyTransfer;
+		schema:agent ?customer;
+		schema:amount ?price;
+		schema:currency ?currency;
+		schema:actionStatus schema:ActiveActionStatus;
+		schema:object ?notification;
+		ethon:from ?Sender;
+		ethon:to ?Receiver.		
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?notification ; 
+     http:body { 
+     ?notification a schema:Invoice;
+					schema:customer ?customer;
+					schema:totalPaymentDue ?price;
+					schema:currency ?currency;
+					schema:paymentStatus "Payment In Progress";
+					schema:referencesOrder ?answer.
+            }.
+}.
+
+#Check updated content/order status.
+{
+  ?notification a as:Update;
+                as:actor ?seller;
+                as:object ?answer.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?answer.
+}.
+
+#Return to starting position, if Order was cancelled.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderCancelled;
+			schema:acceptedOffer ?off.	
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Represent "Pickup" in 3D-Environment.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderPickupAvailable;
+			schema:acceptedOffer ?off.	
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+        _:c voc:invokeAction voc:grip.
+		_:c voc:invokeAction voc:down_left.
+            }.
+}.
+
+#Update Order upon sucessful delivery.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderPickupAvailable;
+			schema:acceptedOffer ?off.	
+} => {
+  [] http:mthd httpm:PUT ;
+     http:requestURI ?answer; 
+     http:body { 
+        ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+            }.
+}.
+
+#Retrieve Offer.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?off.
+}.
+
+#Retrieve Product.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+	?off schema:itemOffered ?obj.
+} => {
+  [] http:mthd httpm:GET ;
+     http:requestURI ?obj.
+}.
+
+
+#Represent "Pickup" in 3D-Environment.
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+	?off schema:itemOffered ?obj.
+	?obj schema:category ?category; 
+			schema:name ?name.
+	?seller schema:owns ?obj.
+} => {
+  [] http:mthd httpm:POST ;
+     http:requestURI <http://localhost:8080/arm/1/action>; 
+     http:body { 
+		_:c voc:invokeAction voc:drop.
+            }.
+}.
+
+#Update Product (ownership).
+{
+   ?answer a schema:Order; 
+            schema:customer ?customer;
+			schema:seller ?seller;
+			schema:orderStatus schema:OrderDelivered;
+			schema:acceptedOffer ?off.	
+	?off schema:itemOffered ?obj.
+	?obj schema:category ?category; 
+			schema:name ?name.
+	?seller schema:owns ?obj.
+} => {
+  [] http:mthd httpm:PUT ;
+	 http:requestURI ?obj; 
+		 http:body { 
+			?obj a schema:Product; 
+				schema:category ?category;
+				schema:name ?name.
+				?customer schema:owns ?obj.	
+				}.
+}.
+ 
+#Delete Update messages stored in the inbox.
+{ ?notif a as:Update.
+} => {
+_:b1 http:mthd httpm:DELETE ;
+   http:requestURI ?notif .
+   } . 
+  
+#Delete Reject messages stored in the inbox.
+{ ?notif a as:Reject.
+} => {
+_:b1 http:mthd httpm:DELETE ;
+   http:requestURI ?notif .
+   } . 
+   
+    
+  
